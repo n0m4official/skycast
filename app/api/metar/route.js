@@ -7,83 +7,59 @@ export async function GET(request) {
   }
 
   try {
-    // USA (NOAA TEXT FEED)
+    // -----------------------------------
+    // 1) USA (NOAA)
+    // -----------------------------------
     if (icao.startsWith("K")) {
       const url = `https://tgftp.nws.noaa.gov/data/observations/metar/stations/${icao}.TXT`;
       const res = await fetch(url, { cache: "no-store" });
 
-      if (res.ok) {
-        const text = await res.text();
-        const lines = text.trim().split("\n");
+      if (!res.ok) throw new Error("NOAA METAR not found");
 
-        return Response.json(
-          {
-            raw_text: lines[1] ?? null,
-            observed: lines[0] ?? null,
-            flight_category: null,
-          },
-          { status: 200 }
-        );
-      }
-    }
+      const text = await res.text();
+      const lines = text.trim().split("\n");
 
-    // VATSIM METAR MIRROR
-    const vatsim = await fetch(
-      `https://metar.vatsim.net/metar.php?icao=${icao}`,
-      {
-        cache: "no-store",
-        headers: {
-          "User-Agent": "SkyCast/1.0 (+https://localhost)", // required
-        }
-      }
-    );
-
-    if (vatsim.ok) {
-      const raw = (await vatsim.text()).trim();
-
-      if (raw && !raw.includes("DOCTYPE")) {
-        return Response.json(
-          {
-            raw_text: raw,
-            observed: null,
-            flight_category: null,
-          },
-          { status: 200 }
-        );
-      }
-    }
-
-    // AVWX GLOBAL FALLBACK (no key needed)
-    const avwx = await fetch(
-      `https://avwx.rest/api/metar/${icao}?options=summary&format=json&token=FREE`,
-      {
-        cache: "no-store",
-        headers: { "User-Agent": "SkyCast/1.0" }
-      }
-    );
-
-    if (avwx.ok) {
-      const json = await avwx.json();
       return Response.json(
         {
-          raw_text: json?.raw || null,
-          observed: json?.time?.dtg || null,
-          flight_category: json?.flight_rules || null,
+          raw_text: lines[1] ?? null,
+          observed: lines[0] ?? null,
+          flight_category: null,
         },
         { status: 200 }
       );
     }
 
-    // -------- ALL FAILED --------
+    // -----------------------------------
+    // 2) INTERNATIONAL (AVWX as fallback)
+    // -----------------------------------
+    const avwx = await fetch(
+      `https://avwx.rest/api/metar/${icao}?format=json`,
+      { cache: "no-store" }
+    );
+
+    if (!avwx.ok) throw new Error("AVWX error");
+
+    const data = await avwx.json();
+
     return Response.json(
-      { raw_text: null, observed: null, flight_category: null },
+      {
+        raw_text: data.raw || null,
+        observed: data.time?.dt || null,
+        flight_category: data.flight_category || null,
+      },
       { status: 200 }
     );
 
   } catch (err) {
     console.error("METAR API ERROR:", err);
+
     return Response.json(
-      { raw_text: null, observed: null, flight_category: null },
+      {
+        raw_text: null,
+        observed: null,
+        flight_category: null,
+        error: "METAR lookup failed",
+      },
       { status: 200 }
     );
   }
