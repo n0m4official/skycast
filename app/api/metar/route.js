@@ -7,9 +7,7 @@ export async function GET(request) {
   }
 
   try {
-    // -----------------------------------
-    // 1) USA (NOAA)
-    // -----------------------------------
+    // USA airports → NOAA TXT (Perfect)
     if (icao.startsWith("K")) {
       const url = `https://tgftp.nws.noaa.gov/data/observations/metar/stations/${icao}.TXT`;
       const res = await fetch(url, { cache: "no-store" });
@@ -29,17 +27,16 @@ export async function GET(request) {
       );
     }
 
-    // -----------------------------------
-    // 2) INTERNATIONAL (AVWX as fallback)
-    // -----------------------------------
-    const avwx = await fetch(
-      `https://avwx.rest/api/metar/${icao}?format=json`,
-      { cache: "no-store" }
-    );
+    // INTERNATIONAL → AVWX public failover
+    const url = `https://avwx.rest/api/metar/${icao}?format=json&onfail=cache`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "SkyCast Student Project" },
+      cache: "no-store",
+    });
 
-    if (!avwx.ok) throw new Error("AVWX error");
+    if (!res.ok) throw new Error("AVWX error");
 
-    const data = await avwx.json();
+    const data = await res.json();
 
     return Response.json(
       {
