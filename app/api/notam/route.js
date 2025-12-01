@@ -1,27 +1,35 @@
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const icao = searchParams.get("icao");
+  const icao = searchParams.get("icao")?.toUpperCase();
 
-  if (!icao) {
-    return new Response(JSON.stringify({ error: "Missing ICAO code" }), {
-      status: 400,
-    });
-  }
+  if (!icao) return Response.json({ error: "Missing ICAO" }, { status: 400 });
+
+  const isUSA = icao.startsWith("K");
+
+  if (!isUSA)
+    return Response.json(
+      { region_supported: false, notams: [] },
+      { status: 200 }
+    );
 
   try {
-    const url = `https://notams.aim.faa.gov/notamSearch/search?searchType=icao&icao=${icao}`;
+    const url = `https://api.flightplandatabase.com/nav/notams/${icao}`;
     const res = await fetch(url, { cache: "no-store" });
 
-    if (!res.ok) throw new Error("NOTAM API error");
+    if (!res.ok) throw new Error("FAA NOTAM API error");
 
     const data = await res.json();
 
-    return new Response(JSON.stringify(data), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return Response.json(
+      {
+        region_supported: true,
+        notams: data.notams ?? []
+      },
+      { status: 200 }
+    );
+
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-    });
+    console.error("FAA NOTAM ERROR:", err);
+    return Response.json({ region_supported: false, notams: [] }, { status: 200 });
   }
 }

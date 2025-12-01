@@ -1,27 +1,28 @@
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const icao = searchParams.get("icao");
+  const icao = searchParams.get("icao")?.toUpperCase();
 
-  if (!icao) {
-    return new Response(JSON.stringify({ error: "Missing ICAO code" }), {
-      status: 400,
-    });
-  }
+  if (!icao) return Response.json({ error: "Missing ICAO" }, { status: 400 });
 
   try {
     const url = `https://aviationweather.gov/api/data/taf?ids=${icao}&format=json`;
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: "no-store" });
 
-    if (!res.ok) throw new Error("API error");
+    if (!res.ok) throw new Error("TAF fetch error");
 
     const data = await res.json();
+    const taf = data[0];
 
-    return new Response(JSON.stringify(data), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return Response.json(
+      {
+        raw_text: taf?.raw_text ?? null,
+        issue_time: taf?.issue_time ?? null
+      },
+      { status: 200 }
+    );
+
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-    });
+    console.error("TAF API error:", err);
+    return Response.json({ raw_text: null, issue_time: null }, { status: 200 });
   }
 }
