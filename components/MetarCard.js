@@ -1,27 +1,34 @@
 "use client";
 
-import { useMetar } from "../lib/useAviationData";
+import useAviationData from "../lib/useAviationData";
+import MetarDecoded from "./MetarDecoded";
 
 export default function MetarCard({ icao }) {
-  const { data, error, isLoading } = useMetar(icao);
-
-  console.log("METAR FULL DATA:", data);
-
-  if (isLoading) return <div className="p-4 border rounded-md shadow">Loading METAR...</div>;
-  if (error) return <div className="p-4 border rounded-md shadow text-red-500">Error loading METAR.</div>;
-
-  // NEW: check required field
-  if (!data || !data.raw_text) {
-    return <div className="p-4 border rounded-md shadow">No METAR available.</div>;
-  }
+  const { metar, loading } = useAviationData(icao);
 
   return (
-    <div className="p-4 border rounded-md shadow">
-      <h2 className="text-xl font-semibold mb-2">METAR</h2>
-      <p className="font-mono text-sm">{data.raw_text}</p>
-      <p className="text-gray-600 text-sm mt-2">
-        Observed: {data.observed ?? "N/A"}Z
-      </p>
+    <div className="p-4 bg-gray-900 text-gray-100 rounded-lg shadow">
+      <h2 className="text-xl font-bold mb-3">METAR</h2>
+
+      {loading && <p className="text-gray-400">Loading METAR...</p>}
+
+      {!loading && (!metar || !metar.raw_text) && (
+        <p className="text-red-400">
+          No METAR available for {icao.toUpperCase()}.
+          <br />
+          (This is normal for many Canadian & international airports.)
+        </p>
+      )}
+
+      {metar?.raw_text && (
+        <>
+          {/* Token display */}
+          <MetarDecoded metar={metar} />
+          <p className="mt-3 text-sm text-gray-400">
+            Observed: {metar.observed || "N/A"}
+          </p>
+        </>
+      )}
     </div>
   );
 }

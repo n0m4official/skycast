@@ -1,8 +1,6 @@
+import MetarDecoded from "@/components/MetarDecoded";
 import AirportHeader from "../../../components/AirportHeader";
 import MetarCard from "../../../components/MetarCard";
-import TafTimeline from "../../../components/TafTimeline";
-import NotamList from "../../../components/NotamList";
-import RunwayConditions from "../../../components/RunwayConditions";
 
 export default async function AirportPage({ params }) {
   const { icao } = await params;
@@ -14,17 +12,9 @@ export default async function AirportPage({ params }) {
       {/* Airport Section */}
       <AirportHeader icao={icao} />
 
-      {/* METAR + Runway Conditions */}
-      <section className="grid gap-6 md:grid-cols-2">
-        <MetarCard icao={icao} />
-        <RunwayConditions icao={icao} />
-      </section>
-
-      {/* TAF */}
-      <TafTimeline icao={icao} />
-
-      {/* NOTAMs */}
-      <NotamList icao={icao} />
+      {/* METAR */}
+      <MetarCard icao={icao} />
+      <MetarDecoded icao={icao}/>
 
     </main>
   );
