@@ -9,7 +9,7 @@ export default function HomePage() {
       </p>
       <SearchBar />
       <p className="text-gray-600 mb-8 text-center max-w-xl">
-        Note: as of now, only airports with the prefix K (US Airports) are usable.
+        Note: due to aviation regulations, non-US airports may have unreliable data.
       </p>
     </main>
   );
