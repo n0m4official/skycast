@@ -7,48 +7,45 @@ export async function GET(request) {
   }
 
   try {
-    // USA airports → NOAA TXT (Perfect)
+    // 1) Try NOAA for US stations (fastest)
     if (icao.startsWith("K")) {
-      const url = `https://tgftp.nws.noaa.gov/data/observations/metar/stations/${icao}.TXT`;
-      const res = await fetch(url, { cache: "no-store" });
-
-      if (!res.ok) throw new Error("NOAA METAR not found");
-
-      const text = await res.text();
-      const lines = text.trim().split("\n");
-
-      return Response.json(
-        {
-          raw_text: lines[1] ?? null,
-          observed: lines[0] ?? null,
-          flight_category: null,
-        },
-        { status: 200 }
+      const noaa = await fetch(
+        `https://tgftp.nws.noaa.gov/data/observations/metar/stations/${icao}.TXT`,
+        { cache: "no-store" }
       );
+
+      if (noaa.ok) {
+        const txt = await noaa.text();
+        const lines = txt.trim().split("\n");
+
+        return Response.json({
+          raw_text: lines[1] || null,
+          observed: lines[0] || null,
+          flight_category: null
+        });
+      }
     }
 
-    // INTERNATIONAL → AVWX public failover
-    const url = `https://avwx.rest/api/metar/${icao}?format=json&onfail=cache`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "SkyCast Student Project" },
-      cache: "no-store",
-    });
-
-    if (!res.ok) throw new Error("AVWX error");
-
-    const data = await res.json();
-
-    return Response.json(
-      {
-        raw_text: data.raw || null,
-        observed: data.time?.dt || null,
-        flight_category: data.flight_category || null,
-      },
-      { status: 200 }
+    // 2) Global fallback — scrape aviationweather.gov
+    const metarRes = await fetch(
+      `https://aviationweather.gov/api/data/metar?ids=${icao}&format=raw`,
+      { cache: "no-store" }
     );
 
+    const raw = (await metarRes.text()).trim();
+
+    if (!raw || raw.includes("Error")) {
+      throw new Error("Invalid METAR");
+    }
+
+    return Response.json({
+      raw_text: raw,
+      observed: null,
+      flight_category: null,
+    });
+
   } catch (err) {
-    console.error("METAR API ERROR:", err);
+    console.error("METAR SCRAPER ERROR:", err);
 
     return Response.json(
       {
